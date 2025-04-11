@@ -1,0 +1,101 @@
+filmes <-read.csv('movies.csv')
+filmes_trans<-read.csv2('movies_transf.csv')
+dados_normalizados<-scale(filmes_trans)
+install.packages('dplyr')
+library(dplyr)
+##excluir colunas
+filmes_transf<-filmes_trans %>%
+  select(-movieId, -titulo)
+dados_normalizados <- data.frame(scale(filmes_transf))
+## data.frame transformar
+## set.seed - escolhe aleatoriamente
+## kmeans() - criar cluster (nome tabela, centers = numero de grupos)
+set.seed(1987)
+resultado_cluster<-kmeans(dados_normalizados,centers = 3)
+## armazena rotulo do cluster para determinado filme
+resultado_cluster$cluster
+## armazena centroides par acada coluna em data frame
+resultado_cluster$centers
+##visualizar- colunas generos, linhas clusters
+View(resultado_cluster$centers)
+##soma dos quadrados dentro dos clusters
+## o valor do cluster 2 é o menor, isso significa que ele tem um resultado bom, e o 1 não é tao bom, 23 esta entre os dois
+## quanto maior o valor, mais heterogeneos estao os dados, e o objetivo é estarem homogeneos
+resultado_cluster$withinss
+## quantidade de elementos em cada cluster
+resultado_cluster$size
+
+
+
+
+install.packages('cluster')
+library(cluster)
+##
+clusplot(x=filmes_trans,resultado_cluster$cluster,color = TRUE, shade = TRUE )
+
+install.packages('fpc')
+library(fpc)
+plotcluster(x=dados_normalizados, resultado_cluster$cluster, ignorenum = TRUE)
+
+##cada linha é um cluster
+centros<-resultado_cluster$centers
+
+install.packages('reshape2')
+library(reshape2)
+
+## função melt converte cada coluna em linha, transposição da matriz
+centros_2<-melt(centros)
+## gerar tabela
+colnames(centros_2)<-c('cluster', 'genero','centros')
+centros_2$cluster<-as.factor(centros_2$cluster)
+
+install.packages('ggplot2')
+library(ggplot2)
+## gerar grafico de cluster, com visualização de cada cluster
+ggplot(data = centros_2 ) + 
+  geom_bar(aes(x = genero,y = centros,fill = cluster),stat = 'identity') + 
+  facet_grid(cluster ~ .)
+## mensagem de erro
+dev.off()
+
+
+##
+range_k<-c(1:25)
+range_k
+##armazenar as somas dos quadrados
+soma_quadrados<-0
+##looping
+set.seed(1987)
+for(i in range_k){
+  cluster <- kmeans(dados_normalizados,centers = i, nstart = 25)
+  soma_quadrados[i]<- sum(cluster$withinss)
+}
+soma_quadrados
+
+plot(range_k,soma_quadrados, type = 'b',
+     xlab = 'numero de clusters',
+     ylab = 'soma dos quadrados')
+     axis(side = 1, at = range_k, labels = range_k)     
+## foram criados clusters de 1 a 25, pegar soma deles e armazenar eles
+dev.off()
+window()
+
+## cria linha para demonstrar onde ocorre a primeira variação
+abline(v=5, col = 'red')
+
+
+
+## metodo para identiicar o numero adequado de clusters: silhueta
+
+
+range_k<- c(1:15)## criando vetor que ira armazenar a média dos valores de silhouette
+medias_silhouete<- c(0)## criando vetor que ira armazenar a média dos valores de silhouette
+
+set.seed(1987) 
+## loop para calcular a silhouette para cada numero de cluster (range_k)
+for (i in range_k){
+  print(i)
+  clusters  <- kmeans(dados_normalizados,  centers = i) ## criando cluster
+  Silhouete <- silhouette(clusters$cluster, dist(dados_normalizados)) ## calculando a silhouette
+  media_silhouete[i]   <-  mean(Silhouete[,3]) ## calculando a media da silhouette
+}
